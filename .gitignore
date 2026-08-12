@@ -1,0 +1,14 @@
+# Secrets and local environment
+.env
+
+# Python caches and builds
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.pytest-tmp/
+
+# Local runtime data
+work/
+build/
+.worktrees/
