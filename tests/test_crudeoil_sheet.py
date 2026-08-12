@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 1 seconds
-Output:
 from __future__ import annotations
 
 from datetime import date, datetime

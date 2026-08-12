@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 1 seconds
-Output:
 // CrudeOil option-chain dashboard and recorder.
 // This is the SENSEX recorder model mapped to the MCX CrudeOil workbook.
 const SPREADSHEET_ID = '1-Z5TwzXgNqYd75y8g3TdWTLMiICMMeXoRfxzjxkSpb8';

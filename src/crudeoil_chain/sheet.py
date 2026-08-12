@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.4 seconds
-Output:
 """Google Sheets output for MCX Crude Oil and its support tabs."""
 from __future__ import annotations
 
