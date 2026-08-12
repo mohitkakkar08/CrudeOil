@@ -56,5 +56,7 @@ jobs:
           FYERS_TOTP_SECRET: ${{ secrets.FYERS_TOTP_SECRET }}
           FYERS_REDIRECT_URI: ${{ secrets.FYERS_REDIRECT_URI }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-          GOOGLE_SHEET_ID: ${{ secrets.CRUDEOIL_GOOGLE_SHEET_ID }}
-
+          # Accept the dedicated name, while remaining compatible with the
+          # standard secret name used by the SENSEX worker.
+          GOOGLE_SHEET_ID: ${{ secrets.CRUDEOIL_GOOGLE_SHEET_ID || secrets.GOOGLE_SHEET_ID }}
+
