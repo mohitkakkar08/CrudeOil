@@ -1,5 +1,5 @@
 Exit code: 0
-Wall time: 1 seconds
+Wall time: 0.4 seconds
 Output:
 """Google Sheets output for MCX Crude Oil and its support tabs."""
 from __future__ import annotations
@@ -77,9 +77,10 @@ def _chain_values(snapshot: ChainSnapshot, include_headers: bool) -> list[list[o
 
 
 def _support_tab_values() -> list[dict[str, object]]:
-    # Match the SENSEX helper's horizontal strike-ladder layout.  MCX needs
-    # 61 strike columns rather than the SENSEX sheet's 50, hence A:BK.
-    ltp = [["", "", '=IFERROR(TRANSPOSE(FILTER(CrudeOil!R7:R,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")'] + [""] * 60]
+    # A single spill formula per row follows the complete live strike ladder.
+    # Do not cap MCX CrudeOil at a fixed number of strikes: its listed range
+    # can be materially wider than the 61-strike SENSEX-style view.
+    ltp = [["", "", '=IFERROR(TRANSPOSE(FILTER(CrudeOil!R7:R,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")']]
     labels = [("LTP", "CE"), ("LTP", "PE"), ("OI", "CE"), ("OI", "PE"), ("COI", "CE"), ("COI", "PE")]
     formulas = [
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!Q7:Q,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
@@ -89,7 +90,7 @@ def _support_tab_values() -> list[dict[str, object]]:
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!L7:L,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!W7:W,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
     ]
-    ltp.extend([[metric, side, formula] + [""] * 60 for (metric, side), formula in zip(labels, formulas)])
+    ltp.extend([[metric, side, formula] for (metric, side), formula in zip(labels, formulas)])
     # Source-equivalent summary: rolling values use the chronological record
     # log, rather than a single live option-chain frame.
     rolling_headers = ["Rolling COI (5m)", "Rolling TOI (5m)", "Call OI (5m)", "Put OI (5m)", "Spot", "India VIX", "Straddle", "Snapshot Count", "Data Timestamp"]
@@ -105,7 +106,7 @@ def _support_tab_values() -> list[dict[str, object]]:
         '=IFERROR(INDEX(\'CrudeOil Records\'!A:A,COUNTA(\'CrudeOil Records\'!A:A)),"")',
     ]
     return [
-        {"range": "CrudeOil LTP Run!A1:BK7", "values": ltp},
+        {"range": "CrudeOil LTP Run!A1:C7", "values": ltp},
         {"range": "CrudeOil Rolling Data!A1:I2", "values": [rolling_headers, rolling_formulas]},
     ]
 

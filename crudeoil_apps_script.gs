@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 0.4 seconds
+Output:
 // CrudeOil option-chain dashboard and recorder.
 // This is the SENSEX recorder model mapped to the MCX CrudeOil workbook.
 const SPREADSHEET_ID = '1-Z5TwzXgNqYd75y8g3TdWTLMiICMMeXoRfxzjxkSpb8';
@@ -45,6 +48,8 @@ function setupCrudeOilWorkbook() {
 }
 
 function ensureCrudeOilRecords_(ss) {
+  // Sheet5 was created by the initial workbook bootstrap. Rename it in place
+  // so formulas already using it continue to point to the same record table.
   let records = ss.getSheetByName(RECORDS_SHEET);
   const temporary = ss.getSheetByName('Sheet5');
   if (!records && temporary) {
@@ -59,23 +64,29 @@ function ensureCrudeOilRecords_(ss) {
 
 function setupCrudeOilLtpRun_(ss) {
   const sheet = ss.getSheetByName(LTP_SHEET) || ss.insertSheet(LTP_SHEET);
-  ensureGrid_(sheet, 63, 7); // A:BK
-  sheet.getRange('A1:BK7').clearContent();
+  // MCX can expose well above 61 strikes. Clear a generous horizontal area,
+  // then use dynamic spill formulas so every live strike is shown.
+  ensureGrid_(sheet, 702, 7); // A:ZZ
+  sheet.getRange('A1:ZZ7').clearContent();
   sheet.getRange('A2:B7').setValues([
-    ['LTP', 'CE'], ['LTP', 'PE'], ['OI', 'CE'], ['OI', 'PE'], ['COI', 'CE'], ['COI', 'PE']
+    ['LTP', 'CE'],
+    ['LTP', 'PE'],
+    ['OI', 'CE'],
+    ['OI', 'PE'],
+    ['COI', 'CE'],
+    ['COI', 'PE']
   ]);
-  const formulas = [];
-  const columns = [['R', 1], ['Q', 2], ['S', 3], ['K', 4], ['X', 5], ['L', 6], ['W', 7]];
-  for (const [sourceColumn, targetRow] of columns) {
-    const row = [];
-    for (let feedRow = 7; feedRow <= 67; feedRow++) row.push(`=IFERROR(${FEED_SHEET}!${sourceColumn}${feedRow},"")`);
-    formulas[targetRow - 1] = row;
-  }
-  sheet.getRange('C1:BK7').setFormulas(formulas);
+  const formulaFor = column => `=IFERROR(TRANSPOSE(FILTER(${FEED_SHEET}!${column}7:${column},${FEED_SHEET}!R7:R<>"",${FEED_SHEET}!R7:R<>0)),"")`;
+  sheet.getRange('C1:C7').setFormulas([
+    [formulaFor('R')], [formulaFor('Q')], [formulaFor('S')], [formulaFor('K')],
+    [formulaFor('X')], [formulaFor('L')], [formulaFor('W')]
+  ]);
   sheet.setFrozenColumns(2);
 }
 
-// A one-minute trigger writes twice, roughly 30 seconds apart.
+// One-minute Apps Script triggers support two writes per minute through a
+// 30-second pause. flush() is essential: it commits the first snapshot before
+// the pause instead of batching both rows together at the end.
 function recordCrudeOilSnapshot() {
   recordCrudeOilSnapshot_(false);
   Utilities.sleep(30 * 1000);
@@ -93,20 +104,26 @@ function recordCrudeOilSnapshot_(allowOutsideMarket) {
   if (!live) throw new Error('Missing live dashboard sheet: ' + LIVE_SHEET);
   if (!feed) throw new Error('Missing raw feed sheet: ' + FEED_SHEET);
   ensureGrid_(live, TOTAL_COLUMNS, RECORD_START_ROW);
+
   const tz = ss.getSpreadsheetTimeZone();
   const now = new Date();
   const weekday = Number(Utilities.formatDate(now, tz, 'u'));
   const hhmm = Utilities.formatDate(now, tz, 'HHmm');
   const isMarketSession = weekday <= 5 && hhmm >= '0900' && hhmm <= '2330';
   if (!allowOutsideMarket && !isMarketSession) return;
+
   const status = String(feed.getRange('B4').getDisplayValue() || '');
   const diagnostic = String(feed.getRange('D4').getDisplayValue() || '');
   if (!allowOutsideMarket && status !== 'LIVE') {
     throw new Error('Skipped snapshot: live status is ' + status + '; diagnostic: ' + diagnostic);
   }
+
   const staticHeaders = live.getRange(1, 1, 1, STATIC_HEADER_COLUMNS).getDisplayValues()[0];
   const staticHeaderRange = live.getRange(RECORD_HEADER_ROW, 1, 1, STATIC_HEADER_COLUMNS);
-  if (staticHeaderRange.getDisplayValues()[0].every(value => value === '')) staticHeaderRange.setValues([staticHeaders]);
+  if (staticHeaderRange.getDisplayValues()[0].every(value => value === '')) {
+    staticHeaderRange.setValues([staticHeaders]);
+  }
+
   const ceValues = live.getRange(CE_SOURCE_ROW, 1, 1, CE_COLUMNS).getValues()[0];
   const peValues = live.getRange(PE_SOURCE_ROW, STRIKE_GRID_START_COLUMN, 1, PE_COLUMNS).getValues()[0];
   const nextRow = Math.max(RECORD_START_ROW, live.getLastRow() + 1);
@@ -125,3 +142,4 @@ function clearCrudeOilRecords() {
   const live = book_().getSheetByName(LIVE_SHEET);
   if (live) live.getRange('A7:FS999').clearContent();
 }
+
