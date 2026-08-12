@@ -77,12 +77,12 @@ def _support_tab_values() -> list[dict[str, object]]:
     ltp = [["Metric"] + [""] * 51]
     labels = ["LTP CE", "LTP PE", "OI CE", "OI PE", "COI CE", "COI PE"]
     formulas = [
-        '=IFERROR(TRANSPOSE(FILTER(CrudeOil!R7:R,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!Q7:Q,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!S7:S,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!K7:K,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!X7:X,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!L7:L,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
+        '=IFERROR(TRANSPOSE(FILTER(CrudeOil!W7:W,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
     ]
     ltp.extend([[label, formula] + [""] * 50 for label, formula in zip(labels, formulas)])
     rolling_headers = ["Rolling COI (5m)", "Rolling TOI (5m)", "Call OI (5m)", "Put OI (5m)", "Spot", "India VIX", "Straddle", "Snapshot Count", "Data Timestamp", "", "", "Strike Price", "CE Prev Close", "CE Low", "CE High", "CE Open", "CE Volume", "CE LTP Change", "CE LTP Change %", "CE LTP", "CE OI", "CE OI Change", "Strike Price", "PE OI Change", "PE OI", "PE LTP", "PE LTP Change", "PE Low", "PE High", "PE Open", "PE Volume"]

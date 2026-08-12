@@ -48,3 +48,11 @@ def test_crudeoil_gateway_writes_chain_and_support_tab_formulas() -> None:
     assert "CrudeOil LTP Run!A1:AZ7" in support_ranges
     assert "CrudeOil Rolling Data!A1:AE2" in support_ranges
 
+    ltp_values = next(item["values"] for item in data if item["range"] == "CrudeOil LTP Run!A1:AZ7")
+    assert "CrudeOil!Q7:Q" in ltp_values[1][1]
+    assert "CrudeOil!S7:S" in ltp_values[2][1]
+    assert "CrudeOil!K7:K" in ltp_values[3][1]
+    assert "CrudeOil!X7:X" in ltp_values[4][1]
+    assert "CrudeOil!L7:L" in ltp_values[5][1]
+    assert "CrudeOil!W7:W" in ltp_values[6][1]
+
