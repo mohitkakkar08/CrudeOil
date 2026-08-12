@@ -1,10 +1,11 @@
 Exit code: 0
-Wall time: 0.5 seconds
+Wall time: 1 seconds
 Output:
 from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from pathlib import Path
 
 from crudeoil_chain.cache import ChainRow, ChainSnapshot, MarketTick
 from crudeoil_chain.sheet import GoogleSheetGateway
@@ -72,4 +73,14 @@ def test_crudeoil_gateway_writes_chain_and_support_tab_formulas() -> None:
     assert "CrudeOil!X7:X" in ltp_values[4][2]
     assert "CrudeOil!L7:L" in ltp_values[5][2]
     assert "CrudeOil!W7:W" in ltp_values[6][2]
+
+
+def test_apps_script_centers_recorded_strike_window_on_open_price() -> None:
+    script = (Path(__file__).parents[1] / "crudeoil_apps_script.gs").read_text(encoding="utf-8")
+
+    assert "function setupCrudeOilSheet1Window_(ss)" in script
+    assert "MROUND(CrudeOil!C2,50)" in script
+    assert "MATCH(" in script
+    assert "OFFSET(" in script
+    assert "BB1:DJ3" in script
 

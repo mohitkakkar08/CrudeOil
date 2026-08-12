@@ -1,5 +1,5 @@
 Exit code: 0
-Wall time: 0.4 seconds
+Wall time: 1 seconds
 Output:
 // CrudeOil option-chain dashboard and recorder.
 // This is the SENSEX recorder model mapped to the MCX CrudeOil workbook.
@@ -44,6 +44,7 @@ function setupCrudeOilWorkbook() {
   ensureGrid_(live, TOTAL_COLUMNS, RECORD_START_ROW);
   ensureCrudeOilRecords_(ss);
   setupCrudeOilLtpRun_(ss);
+  setupCrudeOilSheet1Window_(ss);
   SpreadsheetApp.flush();
 }
 
@@ -82,6 +83,32 @@ function setupCrudeOilLtpRun_(ss) {
     [formulaFor('X')], [formulaFor('L')], [formulaFor('W')]
   ]);
   sheet.setFrozenColumns(2);
+}
+
+// Keep the same 61-strike recorder footprint as SENSEX, but move the window
+// each day around the rounded CrudeOil opening price. This makes BB:DJ contain
+// 30 strikes below ATM, ATM, and 30 strikes above ATM; DK:FS records the
+// matching PE values for the exact same strike sequence.
+function setupCrudeOilSheet1Window_(ss) {
+  const live = ss.getSheetByName(LIVE_SHEET);
+  const run = `'${LTP_SHEET}'!C1:ZZ1`;
+  const start = `MAX(1,MIN(MATCH(MROUND(CrudeOil!C2,50),${run},0)-30,MAX(1,COUNTA(${run})-60)))`;
+  const width = `MIN(61,COUNTA(${run}))`;
+
+  live.getRange('BB1:DJ3').clearContent();
+  live.getRange('BB1').setFormula(
+    `=IFERROR(ARRAY_CONSTRAIN(OFFSET('${LTP_SHEET}'!C1,0,${start}-1,1,${width}),1,${width}),"")`
+  );
+  live.getRange('BB2').setFormula(
+    `=ARRAYFORMULA(IFERROR(XLOOKUP(BB1:DJ1,'${LTP_SHEET}'!C1:ZZ1,'${LTP_SHEET}'!C2:ZZ2),""))`
+  );
+  live.getRange('BB3').setFormula(
+    `=ARRAYFORMULA(IFERROR(XLOOKUP(BB1:DJ1,'${LTP_SHEET}'!C1:ZZ1,'${LTP_SHEET}'!C3:ZZ3),""))`
+  );
+
+  live.getRange('BB6:FS6').clearContent();
+  live.getRange('BB6').setFormula('=ARRAYFORMULA(IF(BB1:DJ1<>"",BB1:DJ1&" CE",""))');
+  live.getRange('DK6').setFormula('=ARRAYFORMULA(IF(BB1:DJ1<>"",BB1:DJ1&" PE",""))');
 }
 
 // One-minute Apps Script triggers support two writes per minute through a
