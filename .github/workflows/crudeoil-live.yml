@@ -1,0 +1,60 @@
+name: MCX CrudeOil live option chain
+
+on:
+  workflow_dispatch:
+    inputs:
+      segment:
+        description: MCX session to run
+        type: choice
+        required: true
+        options: [morning, afternoon, evening]
+      run_mode:
+        description: Use smoke for one connection and one sheet write, then exit
+        type: choice
+        required: true
+        default: live
+        options: [live, smoke]
+      debug_ticks:
+        description: Print the first five websocket ticks (manual diagnostics only)
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crudeoil-live-${{ inputs.segment }}
+  cancel-in-progress: false
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    # GitHub-hosted jobs are bounded to six hours. The three MCX segments are
+    # 09:00-15:00, 15:00-21:00, and 21:00-23:30 IST.
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install .
+      - run: |
+          EXTRA_ARGS=""
+          if [ "$RUN_MODE" = "smoke" ]; then EXTRA_ARGS="--once"; fi
+          if [ "$DEBUG_TICKS" = "true" ]; then EXTRA_ARGS="$EXTRA_ARGS --debug-ticks"; fi
+          python -m crudeoil_chain --segment "$SEGMENT" $EXTRA_ARGS
+        env:
+          SEGMENT: ${{ inputs.segment }}
+          RUN_MODE: ${{ inputs.run_mode }}
+          DEBUG_TICKS: ${{ inputs.debug_ticks }}
+          FYERS_CLIENT_ID: ${{ secrets.FYERS_CLIENT_ID }}
+          FYERS_SECRET_KEY: ${{ secrets.FYERS_SECRET_KEY }}
+          FYERS_USER_ID: ${{ secrets.FYERS_USER_ID }}
+          FYERS_PIN: ${{ secrets.FYERS_PIN }}
+          FYERS_TOTP_SECRET: ${{ secrets.FYERS_TOTP_SECRET }}
+          FYERS_REDIRECT_URI: ${{ secrets.FYERS_REDIRECT_URI }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_SHEET_ID: ${{ secrets.CRUDEOIL_GOOGLE_SHEET_ID }}
+
