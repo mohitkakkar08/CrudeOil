@@ -1,3 +1,6 @@
+Exit code: 0
+Wall time: 0.7 seconds
+Output:
 """Google Sheets output for MCX Crude Oil and its support tabs."""
 from __future__ import annotations
 
@@ -74,8 +77,10 @@ def _chain_values(snapshot: ChainSnapshot, include_headers: bool) -> list[list[o
 
 
 def _support_tab_values() -> list[dict[str, object]]:
-    ltp = [["Metric"] + [""] * 51]
-    labels = ["LTP CE", "LTP PE", "OI CE", "OI PE", "COI CE", "COI PE"]
+    # Match the SENSEX helper's horizontal strike-ladder layout.  MCX needs
+    # 61 strike columns rather than the SENSEX sheet's 50, hence A:BK.
+    ltp = [["", "", '=IFERROR(TRANSPOSE(FILTER(CrudeOil!R7:R,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")'] + [""] * 60]
+    labels = [("LTP", "CE"), ("LTP", "PE"), ("OI", "CE"), ("OI", "PE"), ("COI", "CE"), ("COI", "PE")]
     formulas = [
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!Q7:Q,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!S7:S,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
@@ -84,11 +89,14 @@ def _support_tab_values() -> list[dict[str, object]]:
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!L7:L,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!W7:W,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
     ]
-    ltp.extend([[label, formula] + [""] * 50 for label, formula in zip(labels, formulas)])
-    rolling_headers = ["Rolling COI (5m)", "Rolling TOI (5m)", "Call OI (5m)", "Put OI (5m)", "Spot", "India VIX", "Straddle", "Snapshot Count", "Data Timestamp", "", "", "Strike Price", "CE Prev Close", "CE Low", "CE High", "CE Open", "CE Volume", "CE LTP Change", "CE LTP Change %", "CE LTP", "CE OI", "CE OI Change", "Strike Price", "PE OI Change", "PE OI", "PE LTP", "PE LTP Change", "PE Low", "PE High", "PE Open", "PE Volume"]
-    rolling_formulas = ['=IFERROR(SUM(CrudeOil!L7:L)+SUM(CrudeOil!W7:W),"")', '=IFERROR(SUM(CrudeOil!K7:K)+SUM(CrudeOil!X7:X),"")', '=IFERROR(SUM(CrudeOil!K7:K),"")', '=IFERROR(SUM(CrudeOil!X7:X),"")', '=IFERROR(CrudeOil!Q2,"")', '=""', '=""', '=IFERROR(COUNTA(FILTER(CrudeOil!R7:R,CrudeOil!R7:R<>"")),"")', '=IFERROR(CrudeOil!AJ7,"")', '', '', '=IFERROR(CrudeOil!R7,"")', '=IFERROR(CrudeOil!A7,"")', '=IFERROR(CrudeOil!B7,"")', '=IFERROR(CrudeOil!C7,"")', '=IFERROR(CrudeOil!D7,"")', '=IFERROR(CrudeOil!N7,"")', '=IFERROR(CrudeOil!O7,"")', '=IFERROR(CrudeOil!P7,"")', '=IFERROR(CrudeOil!Q7,"")', '=IFERROR(CrudeOil!K7,"")', '=IFERROR(CrudeOil!L7,"")', '=IFERROR(CrudeOil!R7,"")', '=IFERROR(CrudeOil!W7,"")', '=IFERROR(CrudeOil!X7,"")', '=IFERROR(CrudeOil!S7,"")', '=IFERROR(CrudeOil!T7,"")', '=IFERROR(CrudeOil!AH7,"")', '=IFERROR(CrudeOil!AG7,"")', '=IFERROR(CrudeOil!AF7,"")', '=IFERROR(CrudeOil!V7,"")']
+    ltp.extend([[metric, side, formula] + [""] * 60 for (metric, side), formula in zip(labels, formulas)])
+    # SENSEX Rolling Data uses only this nine-field summary.  Keep the
+    # instrument-specific detail in the live tab rather than maintaining a
+    # second, incompatible rolling-data layout.
+    rolling_headers = ["Rolling COI (5m)", "Rolling TOI (5m)", "Call OI (5m)", "Put OI (5m)", "Spot", "India VIX", "Straddle", "Snapshot Count", "Data Timestamp"]
+    rolling_formulas = ['=IFERROR(SUM(CrudeOil!L7:L)+SUM(CrudeOil!W7:W),"")', '=IFERROR(SUM(CrudeOil!K7:K)+SUM(CrudeOil!X7:X),"")', '=IFERROR(SUM(CrudeOil!K7:K),"")', '=IFERROR(SUM(CrudeOil!X7:X),"")', '=IFERROR(CrudeOil!F2,"")', '=""', '=""', '=IFERROR(COUNTA(FILTER(CrudeOil!R7:R,CrudeOil!R7:R<>"")),"")', '=IFERROR(CrudeOil!AJ7,"")']
     return [
-        {"range": "CrudeOil LTP Run!A1:AZ7", "values": ltp},
-        {"range": "CrudeOil Rolling Data!A1:AE2", "values": [rolling_headers, rolling_formulas]},
+        {"range": "CrudeOil LTP Run!A1:BK7", "values": ltp},
+        {"range": "CrudeOil Rolling Data!A1:I2", "values": [rolling_headers, rolling_formulas]},
     ]
 
