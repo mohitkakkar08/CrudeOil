@@ -1,5 +1,5 @@
 Exit code: 0
-Wall time: 0.7 seconds
+Wall time: 1 seconds
 Output:
 """Google Sheets output for MCX Crude Oil and its support tabs."""
 from __future__ import annotations
@@ -90,11 +90,20 @@ def _support_tab_values() -> list[dict[str, object]]:
         '=IFERROR(TRANSPOSE(FILTER(CrudeOil!W7:W,CrudeOil!R7:R<>"",CrudeOil!R7:R<>0)),"")',
     ]
     ltp.extend([[metric, side, formula] + [""] * 60 for (metric, side), formula in zip(labels, formulas)])
-    # SENSEX Rolling Data uses only this nine-field summary.  Keep the
-    # instrument-specific detail in the live tab rather than maintaining a
-    # second, incompatible rolling-data layout.
+    # Source-equivalent summary: rolling values use the chronological record
+    # log, rather than a single live option-chain frame.
     rolling_headers = ["Rolling COI (5m)", "Rolling TOI (5m)", "Call OI (5m)", "Put OI (5m)", "Spot", "India VIX", "Straddle", "Snapshot Count", "Data Timestamp"]
-    rolling_formulas = ['=IFERROR(SUM(CrudeOil!L7:L)+SUM(CrudeOil!W7:W),"")', '=IFERROR(SUM(CrudeOil!K7:K)+SUM(CrudeOil!X7:X),"")', '=IFERROR(SUM(CrudeOil!K7:K),"")', '=IFERROR(SUM(CrudeOil!X7:X),"")', '=IFERROR(CrudeOil!F2,"")', '=""', '=""', '=IFERROR(COUNTA(FILTER(CrudeOil!R7:R,CrudeOil!R7:R<>"")),"")', '=IFERROR(CrudeOil!AJ7,"")']
+    rolling_formulas = [
+        '=IF(COUNTA(\'CrudeOil Records\'!A:A)<=6,"",INDEX(\'CrudeOil Records\'!J:J,COUNTA(\'CrudeOil Records\'!A:A))-INDEX(\'CrudeOil Records\'!J:J,COUNTA(\'CrudeOil Records\'!A:A)-5))',
+        '=IF(COUNTA(\'CrudeOil Records\'!A:A)<=6,"",INDEX(\'CrudeOil Records\'!C:C,COUNTA(\'CrudeOil Records\'!A:A))+INDEX(\'CrudeOil Records\'!G:G,COUNTA(\'CrudeOil Records\'!A:A))-INDEX(\'CrudeOil Records\'!C:C,COUNTA(\'CrudeOil Records\'!A:A)-5)-INDEX(\'CrudeOil Records\'!G:G,COUNTA(\'CrudeOil Records\'!A:A)-5))',
+        '=IF(COUNTA(\'CrudeOil Records\'!A:A)<=6,"",INDEX(\'CrudeOil Records\'!C:C,COUNTA(\'CrudeOil Records\'!A:A))-INDEX(\'CrudeOil Records\'!C:C,COUNTA(\'CrudeOil Records\'!A:A)-5))',
+        '=IF(COUNTA(\'CrudeOil Records\'!A:A)<=6,"",INDEX(\'CrudeOil Records\'!G:G,COUNTA(\'CrudeOil Records\'!A:A))-INDEX(\'CrudeOil Records\'!G:G,COUNTA(\'CrudeOil Records\'!A:A)-5))',
+        '=IFERROR(INDEX(\'CrudeOil Records\'!B:B,COUNTA(\'CrudeOil Records\'!A:A)),"")',
+        '=IFERROR(INDEX(\'CrudeOil Records\'!N:N,COUNTA(\'CrudeOil Records\'!A:A)),"")',
+        '=IFERROR(INDEX(\'CrudeOil Records\'!M:M,COUNTA(\'CrudeOil Records\'!A:A)),"")',
+        '=MAX(0,COUNTA(\'CrudeOil Records\'!A:A)-1)',
+        '=IFERROR(INDEX(\'CrudeOil Records\'!A:A,COUNTA(\'CrudeOil Records\'!A:A)),"")',
+    ]
     return [
         {"range": "CrudeOil LTP Run!A1:BK7", "values": ltp},
         {"range": "CrudeOil Rolling Data!A1:I2", "values": [rolling_headers, rolling_formulas]},
