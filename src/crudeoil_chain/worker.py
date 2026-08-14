@@ -63,7 +63,7 @@ class LiveChainWorker:
             return WorkerStatus.waiting_for_ticks(now, "SOCKET_SUBSCRIBED_NO_TICKS")
         if not coverage.has_future_tick or coverage.option_tick_count == 0:
             return WorkerStatus.partial_live(now, coverage.tick_count, coverage.option_tick_count)
-        if option_diagnostic not in {"OPTION_CHAIN_OK", "OPTION_CHAIN_DISABLED"}:
+        if option_diagnostic not in {"OPTION_CHAIN_OK", "OPTION_CHAIN_DISABLED"} and not option_diagnostic.startswith("OPTION_CHAIN_THROTTLED_"):
             return WorkerStatus("PARTIAL_LIVE", now, option_diagnostic, coverage.tick_count, coverage.option_tick_count)
         future_depth_healthy = future_diagnostic in {"FUTURE_DEPTH_OK", "FUTURE_DEPTH_DISABLED", "FUTURE_DEPTH_NOT_APPLICABLE"} or future_diagnostic.startswith("FUTURE_DEPTH_THROTTLED_")
         if not future_depth_healthy:

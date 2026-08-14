@@ -114,3 +114,51 @@ def test_crudeoil_worker_surfaces_future_tick_stale_instead_of_live() -> None:
     assert gateway.history[1].state == "PARTIAL_LIVE"
     assert gateway.history[1].diagnostic_code == "FUTURE_TICK_STALE"
 
+
+class ThrottledOptionChainEnricher:
+    """Stands in for the real option-chain enricher hitting its own 10s
+    pacing gate — the exact bug reported live: flush_seconds (10) sits
+    right on the gate's minimum_interval_seconds (10.0), so timing jitter
+    occasionally skips a cycle's call by ~1 second. That must not read as
+    unhealthy."""
+
+    diagnostic_code = "OPTION_CHAIN_THROTTLED_1S"
+
+    def refresh(self, chain, cache) -> None:
+        return
+
+
+class RateLimitedOptionChainEnricher:
+    """Stands in for a genuine, repeated FYERS 429 — this must still read
+    as unhealthy, proving the THROTTLED whitelist isn't overly broad."""
+
+    diagnostic_code = "OPTION_CHAIN_RATE_LIMIT_BACKOFF_30S"
+
+    def refresh(self, chain, cache) -> None:
+        return
+
+
+def test_crudeoil_worker_does_not_flip_to_partial_live_on_routine_option_chain_pacing() -> None:
+    feed, gateway = Feed(), Gateway()
+    worker = LiveChainWorker(
+        Catalog(), TokenProvider(), lambda _: feed, LatestMarketCache(), gateway, Clock(), 10,
+        option_chain_factory=lambda _: ThrottledOptionChainEnricher(),
+    )
+
+    worker.run(SessionSegment.MORNING, max_cycles=1)
+
+    assert gateway.status.state == "LIVE"
+
+
+def test_crudeoil_worker_still_flags_a_genuine_option_chain_rate_limit() -> None:
+    feed, gateway = Feed(), Gateway()
+    worker = LiveChainWorker(
+        Catalog(), TokenProvider(), lambda _: feed, LatestMarketCache(), gateway, Clock(), 10,
+        option_chain_factory=lambda _: RateLimitedOptionChainEnricher(),
+    )
+
+    worker.run(SessionSegment.MORNING, max_cycles=1)
+
+    assert gateway.status.state == "PARTIAL_LIVE"
+    assert gateway.status.diagnostic_code == "OPTION_CHAIN_RATE_LIMIT_BACKOFF_30S"
+

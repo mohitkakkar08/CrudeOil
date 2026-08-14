@@ -24,7 +24,11 @@ class FyersCrudeOilOptionChainEnricher:
             return
         permission = self._request_gate.acquire()
         if not permission.allowed:
-            self.diagnostic_code = f"RATE_LIMIT_BACKOFF_{permission.retry_in_seconds}S"
+            # The gate itself is pacing us to respect FYERS' real limit; this
+            # is not a failure, just a call skipped by a few seconds. Kept
+            # distinct from a genuine 429 below so the worker can treat the
+            # two differently (see OPTION_CHAIN_THROTTLED_ in worker.py).
+            self.diagnostic_code = f"OPTION_CHAIN_THROTTLED_{permission.retry_in_seconds}S"
             return
         try:
             response = self._client().optionchain(data={
@@ -35,7 +39,7 @@ class FyersCrudeOilOptionChainEnricher:
             })
             if _is_rate_limited(response):
                 delay = self._request_gate.on_rate_limit(_retry_after_seconds(response))
-                self.diagnostic_code = f"RATE_LIMIT_BACKOFF_{delay}S"
+                self.diagnostic_code = f"OPTION_CHAIN_RATE_LIMIT_BACKOFF_{delay}S"
                 return
             for tick in extract_option_ticks(response, chain.option_symbols).values():
                 cache.upsert(tick)
