@@ -1,6 +1,8 @@
 """Thread-safe latest-value cache for the MCX Crude Oil chain."""
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -47,10 +49,30 @@ class ChainSnapshot:
     future: MarketTick | None
 
 
+@dataclass(frozen=True)
+class MarketDataCoverage:
+    """Presence of a future tick (``has_future_tick``) only proves the
+    future symbol ticked at least once. A socket can keep that first tick
+    sitting in cache forever without ever refreshing it again, while CE/PE
+    option data keeps flowing normally via the separate REST option-chain
+    call. ``coverage()`` also reports whether the future's LTP has gone
+    stale, so that condition is visible as a diagnostic instead of silently
+    reading as "LIVE" (same root cause and fix as sensex_chain 0.2.0).
+    """
+
+    tick_count: int
+    option_tick_count: int
+    has_future_tick: bool
+    future_stale: bool = False
+
+
 class LatestMarketCache:
-    def __init__(self) -> None:
+    def __init__(self, monotonic: Callable[[], float] = time.monotonic) -> None:
         self._lock = Lock()
         self._ticks: dict[str, MarketTick] = {}
+        self._last_seen: dict[str, float] = {}
+        self._last_price_seen: dict[str, float] = {}
+        self._monotonic = monotonic
 
     def upsert(self, raw_tick: Mapping[str, object]) -> None:
         tick = _normalize_tick(raw_tick)
@@ -59,12 +81,28 @@ class LatestMarketCache:
         with self._lock:
             previous = self._ticks.get(tick.symbol)
             self._ticks[tick.symbol] = tick if previous is None else _merge_tick(previous, tick)
+            now = self._monotonic()
+            self._last_seen[tick.symbol] = now
+            # Tracked separately from _last_seen: an OI-only REST update (the
+            # future depth enricher below) touches _last_seen without ever
+            # carrying a price, which would otherwise mask a socket that
+            # stopped refreshing the LTP itself. Staleness must be judged on
+            # price freshness, not on "something touched this symbol".
+            if tick.ltp is not None:
+                self._last_price_seen[tick.symbol] = now
 
-    def coverage(self, chain: CurrentExpiryChain) -> tuple[int, int, bool]:
+    def coverage(self, chain: CurrentExpiryChain, stale_after_seconds: float = 30.0) -> MarketDataCoverage:
+        now = self._monotonic()
         with self._lock:
             symbols = set(self._ticks)
+            last_price_seen = dict(self._last_price_seen)
+        option_symbols = chain.option_symbols
         has_future = chain.future is not None and chain.future.symbol in symbols
-        return len(symbols), len(symbols & chain.option_symbols), has_future
+        future_stale = False
+        if chain.future is not None:
+            future_symbol = chain.future.symbol
+            future_stale = future_symbol in last_price_seen and (now - last_price_seen[future_symbol]) > stale_after_seconds
+        return MarketDataCoverage(len(symbols), len(symbols & option_symbols), has_future, future_stale)
 
     def snapshot(self, chain: CurrentExpiryChain, now: datetime) -> ChainSnapshot:
         with self._lock:
